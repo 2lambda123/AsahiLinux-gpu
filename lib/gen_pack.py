@@ -125,7 +125,7 @@ __gen_unpack_sint(const uint8_t *restrict cl, uint32_t start, uint32_t end)
 def to_alphanum(name):
     """
 
-    :param name: 
+    :param name:
 
     """
     substitutions = {
@@ -158,7 +158,7 @@ def to_alphanum(name):
 def safe_name(name):
     """
 
-    :param name: 
+    :param name:
 
     """
     name = to_alphanum(name)
@@ -171,8 +171,8 @@ def safe_name(name):
 def prefixed_upper_name(prefix, name):
     """
 
-    :param prefix: 
-    :param name: 
+    :param prefix:
+    :param name:
 
     """
     if prefix:
@@ -183,7 +183,7 @@ def prefixed_upper_name(prefix, name):
 def enum_name(name):
     """
 
-    :param name: 
+    :param name:
 
     """
     return "{}_{}".format(global_prefix, safe_name(name)).lower()
@@ -192,7 +192,7 @@ def enum_name(name):
 def num_from_str(num_str):
     """
 
-    :param num_str: 
+    :param num_str:
 
     """
     if num_str.lower().startswith("0x"):
@@ -208,7 +208,7 @@ MODIFIERS = ["shr", "minus", "align", "log2"]
 def parse_modifier(modifier):
     """
 
-    :param modifier: 
+    :param modifier:
 
     """
     if modifier is None:
@@ -280,7 +280,7 @@ class Field(object):
     def emit_template_struct(self, dim):
         """
 
-        :param dim: 
+        :param dim:
 
         """
         if self.type == "address":
@@ -312,7 +312,7 @@ class Field(object):
     def overlaps(self, field):
         """
 
-        :param field: 
+        :param field:
 
         """
         return self != field and max(self.start, field.start) <= min(
@@ -349,7 +349,7 @@ class Group(object):
     def emit_template_struct(self, dim):
         """
 
-        :param dim: 
+        :param dim:
 
         """
         if self.count == 0:
@@ -384,10 +384,10 @@ class Group(object):
     def collect_fields(self, fields, offset, path, all_fields):
         """
 
-        :param fields: 
-        :param offset: 
-        :param path: 
-        :param all_fields: 
+        :param fields:
+        :param offset:
+        :param path:
+        :param all_fields:
 
         """
         for field in fields:
@@ -408,10 +408,10 @@ class Group(object):
     def collect_words(self, fields, offset, path, words):
         """
 
-        :param fields: 
-        :param offset: 
-        :param path: 
-        :param words: 
+        :param fields:
+        :param offset:
+        :param path:
+        :param words:
 
         """
         for field in fields:
@@ -532,9 +532,9 @@ class Group(object):
     def mask_for_word(self, index, start, end):
         """
 
-        :param index: 
-        :param start: 
-        :param end: 
+        :param index:
+        :param start:
+        :param end:
 
         """
         field_word_start = index * 32
@@ -714,7 +714,7 @@ class Parser(object):
     def gen_prefix(self, name):
         """
 
-        :param name: 
+        :param name:
 
         """
         return "{}_{}".format(global_prefix.upper(), name)
@@ -722,8 +722,8 @@ class Parser(object):
     def start_element(self, name, attrs):
         """
 
-        :param name: 
-        :param attrs: 
+        :param name:
+        :param attrs:
 
         """
         if name == "blxml":
@@ -756,7 +756,7 @@ class Parser(object):
     def end_element(self, name):
         """
 
-        :param name: 
+        :param name:
 
         """
         if name == "struct":
@@ -774,7 +774,7 @@ class Parser(object):
     def emit_header(self, name):
         """
 
-        :param name: 
+        :param name:
 
         """
         default_fields = []
@@ -800,8 +800,8 @@ class Parser(object):
     def emit_template_struct(self, name, group):
         """
 
-        :param name: 
-        :param group: 
+        :param name:
+        :param group:
 
         """
         print("struct %s {" % name)
@@ -811,8 +811,8 @@ class Parser(object):
     def emit_pack_function(self, name, group):
         """
 
-        :param name: 
-        :param group: 
+        :param name:
+        :param group:
 
         """
         print(
@@ -836,8 +836,8 @@ class Parser(object):
     def emit_unpack_function(self, name, group):
         """
 
-        :param name: 
-        :param group: 
+        :param name:
+        :param group:
 
         """
         print("static inline void")
@@ -853,8 +853,8 @@ class Parser(object):
     def emit_print_function(self, name, group):
         """
 
-        :param name: 
-        :param group: 
+        :param name:
+        :param group:
 
         """
         print("static inline void")
@@ -882,7 +882,7 @@ class Parser(object):
     def enum_prefix(self, name):
         """
 
-        :param name: 
+        :param name:
 
         """
         return
@@ -913,7 +913,7 @@ class Parser(object):
     def parse(self, filename):
         """
 
-        :param filename: 
+        :param filename:
 
         """
         file = open(filename, "rb")
