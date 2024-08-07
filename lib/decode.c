@@ -53,27 +53,27 @@ unsigned ro_mapping_count = 0;
 static struct agx_allocation *
 pandecode_find_mapped_gpu_mem_containing_rw(uint64_t addr)
 {
-        for (unsigned i = 0; i < mmap_count; ++i) {
-                if (addr >= mmap_array[i].gpu_va && (addr - mmap_array[i].gpu_va) < mmap_array[i].size && mmap_array[i].map != 0)
-                        return mmap_array + i;
-        }
+    for (unsigned i = 0; i < mmap_count; ++i) {
+        if (addr >= mmap_array[i].gpu_va && (addr - mmap_array[i].gpu_va) < mmap_array[i].size && mmap_array[i].map != 0)
+            return mmap_array + i;
+    }
 
-        return NULL;
+    return NULL;
 }
 
 struct agx_allocation *
 pandecode_find_mapped_gpu_mem_containing(uint64_t addr)
 {
-        struct agx_allocation *mem = pandecode_find_mapped_gpu_mem_containing_rw(addr);
+    struct agx_allocation *mem = pandecode_find_mapped_gpu_mem_containing_rw(addr);
 
-        if (mem && mem->map && !mem->ro) {
-                mprotect(mem->map, mem->size, PROT_READ);
-                mem->ro = true;
-                ro_mappings[ro_mapping_count++] = mem;
-                assert(ro_mapping_count < MAX_MAPPINGS);
-        }
+    if (mem && mem->map && !mem->ro) {
+        mprotect(mem->map, mem->size, PROT_READ);
+        mem->ro = true;
+        ro_mappings[ro_mapping_count++] = mem;
+        assert(ro_mapping_count < MAX_MAPPINGS);
+    }
 
-        return mem;
+    return mem;
 }
 
 static inline void *
@@ -81,21 +81,21 @@ __pandecode_fetch_gpu_mem(const struct agx_allocation *mem,
                           uint64_t gpu_va, size_t size,
                           int line, const char *filename)
 {
-        if (!mem)
-                mem = pandecode_find_mapped_gpu_mem_containing(gpu_va);
+    if (!mem)
+        mem = pandecode_find_mapped_gpu_mem_containing(gpu_va);
 
-        if (!mem) {
-                fprintf(stderr, "Access to unknown memory %" PRIx64 " in %s:%d\n",
-                        gpu_va, filename, line);
-		fflush(pandecode_dump_stream);
-                assert(0);
-        }
+    if (!mem) {
+        fprintf(stderr, "Access to unknown memory %" PRIx64 " in %s:%d\n",
+                gpu_va, filename, line);
+        fflush(pandecode_dump_stream);
+        assert(0);
+    }
 
-        assert(mem);
-        assert(size + (gpu_va - mem->gpu_va) <= mem->size);
-	printf("%p %llx\n", mem->map, mem->gpu_va);
+    assert(mem);
+    assert(size + (gpu_va - mem->gpu_va) <= mem->size);
+    printf("%p %llx\n", mem->map, mem->gpu_va);
 
-        return mem->map + gpu_va - mem->gpu_va;
+    return mem->map + gpu_va - mem->gpu_va;
 }
 
 #define pandecode_fetch_gpu_mem(gpu_va, size) \
@@ -104,13 +104,13 @@ __pandecode_fetch_gpu_mem(const struct agx_allocation *mem,
 static void
 pandecode_map_read_write(void)
 {
-        for (unsigned i = 0; i < ro_mapping_count; ++i) {
-                ro_mappings[i]->ro = false;
-                mprotect(ro_mappings[i]->map, ro_mappings[i]->size,
-                                PROT_READ | PROT_WRITE);
-        }
+    for (unsigned i = 0; i < ro_mapping_count; ++i) {
+        ro_mappings[i]->ro = false;
+        mprotect(ro_mappings[i]->map, ro_mappings[i]->size,
+                 PROT_READ | PROT_WRITE);
+    }
 
-        ro_mapping_count = 0;
+    ro_mapping_count = 0;
 }
 
 /* Helpers for parsing the cmdstream */
@@ -139,56 +139,56 @@ unsigned pandecode_indent = 0;
 static void
 pandecode_validate_buffer(uint64_t addr, size_t sz)
 {
-        if (!addr) {
-                pandecode_msg("XXX: null pointer deref");
-                return;
-        }
+    if (!addr) {
+        pandecode_msg("XXX: null pointer deref");
+        return;
+    }
 
-        /* Find a BO */
+    /* Find a BO */
 
-        struct agx_allocation *bo =
-                pandecode_find_mapped_gpu_mem_containing(addr);
+    struct agx_allocation *bo =
+        pandecode_find_mapped_gpu_mem_containing(addr);
 
-        if (!bo) {
-                pandecode_msg("XXX: invalid memory dereference\n");
-                return;
-        }
+    if (!bo) {
+        pandecode_msg("XXX: invalid memory dereference\n");
+        return;
+    }
 
-        /* Bounds check */
+    /* Bounds check */
 
-        unsigned offset = addr - bo->gpu_va;
-        unsigned total = offset + sz;
+    unsigned offset = addr - bo->gpu_va;
+    unsigned total = offset + sz;
 
-        if (total > bo->size) {
-                fprintf(pandecode_dump_stream, "// XXX: buffer overrun. "
-                                "Chunk of size %zu at offset %d in buffer of size %zu. "
-                                "Overrun by %zu bytes. \n",
-                                sz, offset, bo->size, total - bo->size);
-                return;
-        }
+    if (total > bo->size) {
+        fprintf(pandecode_dump_stream, "// XXX: buffer overrun. "
+                "Chunk of size %zu at offset %d in buffer of size %zu. "
+                "Overrun by %zu bytes. \n",
+                sz, offset, bo->size, total - bo->size);
+        return;
+    }
 }
 
 static struct agx_allocation *
 pandecode_find_cmdbuf(unsigned cmdbuf_index)
 {
-	for (unsigned i = 0; i < mmap_count; ++i) {
-		if (mmap_array[i].type != AGX_ALLOC_CMDBUF)
-			continue;
+    for (unsigned i = 0; i < mmap_count; ++i) {
+        if (mmap_array[i].type != AGX_ALLOC_CMDBUF)
+            continue;
 
-		if (mmap_array[i].index != cmdbuf_index)
-			continue;
+        if (mmap_array[i].index != cmdbuf_index)
+            continue;
 
-		return &mmap_array[i];
-	}
+        return &mmap_array[i];
+    }
 
-	return NULL;
+    return NULL;
 }
 
 static void
 pandecode_dump_bo(struct agx_allocation *bo, const char *name)
 {
-	fprintf(pandecode_dump_stream, "%s %s (%u)\n", name, bo->name ?: "", bo->index);
-	hexdump(pandecode_dump_stream, bo->map, bo->size, false);
+    fprintf(pandecode_dump_stream, "%s %s (%u)\n", name, bo->name ?: "", bo->index);
+    hexdump(pandecode_dump_stream, bo->map, bo->size, false);
 }
 
 /* Abstraction for command stream parsing */
@@ -199,258 +199,258 @@ typedef unsigned (*decode_cmd)(const uint8_t *map, bool verbose);
 static void
 pandecode_stateful(uint64_t va, const char *label, decode_cmd decoder, bool verbose)
 {
-	struct agx_allocation *alloc = pandecode_find_mapped_gpu_mem_containing(va);
-	assert(alloc != NULL && "nonexistant object");
-	fprintf(pandecode_dump_stream, "%s\n", label);
+    struct agx_allocation *alloc = pandecode_find_mapped_gpu_mem_containing(va);
+    assert(alloc != NULL && "nonexistant object");
+    fprintf(pandecode_dump_stream, "%s\n", label);
 
-	uint8_t *map = pandecode_fetch_gpu_mem(va, 64);
-	uint8_t *end = map + alloc->size;
+    uint8_t *map = pandecode_fetch_gpu_mem(va, 64);
+    uint8_t *end = map + alloc->size;
 
-	if (verbose)
-		pandecode_dump_bo(alloc, label);
+    if (verbose)
+        pandecode_dump_bo(alloc, label);
 
-	 while (map < end) {
-		 unsigned count = decoder(map, verbose);
+    while (map < end) {
+        unsigned count = decoder(map, verbose);
 
-		 /* If we fail to decode, default to a hexdump (don't hang) */
-		 if (count == 0) {
-			hexdump(pandecode_dump_stream, map, 8, false);
-			count = 8;
-		 }
+        /* If we fail to decode, default to a hexdump (don't hang) */
+        if (count == 0) {
+            hexdump(pandecode_dump_stream, map, 8, false);
+            count = 8;
+        }
 
-		 map += count;
+        map += count;
 
-		 if (count == STATE_DONE)
-			 break;
-	 }
+        if (count == STATE_DONE)
+            break;
+    }
 }
 
 unsigned COUNTER = 0;
 static unsigned
 pandecode_pipeline(const uint8_t *map, UNUSED bool verbose)
 {
-	uint8_t zeroes[16] = { 0 };
+    uint8_t zeroes[16] = { 0 };
 
-	if (map[0] == 0x4D && map[1] == 0xbd) {
-		/* TODO: Disambiguation for extended is a guess */
-		bl_unpack(pandecode_dump_stream, map, SET_SHADER_EXTENDED, cmd);
-		DUMP_UNPACKED(SET_SHADER_EXTENDED, cmd, "Set shader\n");
+    if (map[0] == 0x4D && map[1] == 0xbd) {
+        /* TODO: Disambiguation for extended is a guess */
+        bl_unpack(pandecode_dump_stream, map, SET_SHADER_EXTENDED, cmd);
+        DUMP_UNPACKED(SET_SHADER_EXTENDED, cmd, "Set shader\n");
 
-		if (cmd.preshader_mode == AGX_PRESHADER_MODE_PRESHADER) {
-			pandecode_log("Preshader\n");
-			agx_disassemble(pandecode_fetch_gpu_mem(cmd.preshader_code, 8192),
-				8192, pandecode_dump_stream);
-			pandecode_log("\n---\n");
-		}
+        if (cmd.preshader_mode == AGX_PRESHADER_MODE_PRESHADER) {
+            pandecode_log("Preshader\n");
+            agx_disassemble(pandecode_fetch_gpu_mem(cmd.preshader_code, 8192),
+                            8192, pandecode_dump_stream);
+            pandecode_log("\n---\n");
+        }
 
-		pandecode_log("\n");
-		agx_disassemble(pandecode_fetch_gpu_mem(cmd.code, 8192),
-			8192, pandecode_dump_stream);
-		pandecode_log("\n");
+        pandecode_log("\n");
+        agx_disassemble(pandecode_fetch_gpu_mem(cmd.code, 8192),
+                        8192, pandecode_dump_stream);
+        pandecode_log("\n");
 
-		char *name;
-		asprintf(&name, "file%u.bin", COUNTER++);
-		FILE *fp = fopen(name, "wb");
-		fwrite(pandecode_fetch_gpu_mem(cmd.code, 8192), 1, 8192, fp);
-		fclose(fp);
-		free(name);
-		pandecode_log("\n");
+        char *name;
+        asprintf(&name, "file%u.bin", COUNTER++);
+        FILE *fp = fopen(name, "wb");
+        fwrite(pandecode_fetch_gpu_mem(cmd.code, 8192), 1, 8192, fp);
+        fclose(fp);
+        free(name);
+        pandecode_log("\n");
 
 
 
-		return AGX_SET_SHADER_EXTENDED_LENGTH;
-	} else if (map[0] == 0x4D) {
-		bl_unpack(pandecode_dump_stream, map, SET_SHADER, cmd);
-		DUMP_UNPACKED(SET_SHADER, cmd, "Set shader\n");
+        return AGX_SET_SHADER_EXTENDED_LENGTH;
+    } else if (map[0] == 0x4D) {
+        bl_unpack(pandecode_dump_stream, map, SET_SHADER, cmd);
+        DUMP_UNPACKED(SET_SHADER, cmd, "Set shader\n");
 
-		if (cmd.preshader_mode == AGX_PRESHADER_MODE_PRESHADER) {
-			pandecode_log("Preshader\n");
-			agx_disassemble(pandecode_fetch_gpu_mem(cmd.preshader_code, 8192),
-				8192, pandecode_dump_stream);
-			pandecode_log("\n---\n");
-		}
+        if (cmd.preshader_mode == AGX_PRESHADER_MODE_PRESHADER) {
+            pandecode_log("Preshader\n");
+            agx_disassemble(pandecode_fetch_gpu_mem(cmd.preshader_code, 8192),
+                            8192, pandecode_dump_stream);
+            pandecode_log("\n---\n");
+        }
 
-		pandecode_log("\n");
-		agx_disassemble(pandecode_fetch_gpu_mem(cmd.code, 8192),
-			8192, pandecode_dump_stream);
-		char *name;
-		asprintf(&name, "file%u.bin", COUNTER++);
-		FILE *fp = fopen(name, "wb");
-		fwrite(pandecode_fetch_gpu_mem(cmd.code, 8192), 1, 8192, fp);
-		fclose(fp);
-		free(name);
-		pandecode_log("\n");
+        pandecode_log("\n");
+        agx_disassemble(pandecode_fetch_gpu_mem(cmd.code, 8192),
+                        8192, pandecode_dump_stream);
+        char *name;
+        asprintf(&name, "file%u.bin", COUNTER++);
+        FILE *fp = fopen(name, "wb");
+        fwrite(pandecode_fetch_gpu_mem(cmd.code, 8192), 1, 8192, fp);
+        fclose(fp);
+        free(name);
+        pandecode_log("\n");
 
-		return AGX_SET_SHADER_LENGTH;
-	} else if (map[0] == 0xDD) {
-		bl_unpack(pandecode_dump_stream, map, BIND_TEXTURE, temp);
-		DUMP_UNPACKED(BIND_TEXTURE, temp, "Bind texture\n");
+        return AGX_SET_SHADER_LENGTH;
+    } else if (map[0] == 0xDD) {
+        bl_unpack(pandecode_dump_stream, map, BIND_TEXTURE, temp);
+        DUMP_UNPACKED(BIND_TEXTURE, temp, "Bind texture\n");
 
-		uint8_t *tex = pandecode_fetch_gpu_mem(temp.buffer, 64);
-		DUMP_CL(TEXTURE, tex, "Texture");
-		DUMP_CL(RENDER_TARGET, tex, "Render Target");
-		hexdump(pandecode_dump_stream, tex + AGX_TEXTURE_LENGTH, 64 - AGX_TEXTURE_LENGTH, false);
+        uint8_t *tex = pandecode_fetch_gpu_mem(temp.buffer, 64);
+        DUMP_CL(TEXTURE, tex, "Texture");
+        DUMP_CL(RENDER_TARGET, tex, "Render Target");
+        hexdump(pandecode_dump_stream, tex + AGX_TEXTURE_LENGTH, 64 - AGX_TEXTURE_LENGTH, false);
 
-		return AGX_BIND_TEXTURE_LENGTH;
-	} else if (map[0] == 0x9D) {
-		bl_unpack(pandecode_dump_stream, map, BIND_SAMPLER, temp);
-		DUMP_UNPACKED(BIND_SAMPLER, temp, "Bind sampler\n");
+        return AGX_BIND_TEXTURE_LENGTH;
+    } else if (map[0] == 0x9D) {
+        bl_unpack(pandecode_dump_stream, map, BIND_SAMPLER, temp);
+        DUMP_UNPACKED(BIND_SAMPLER, temp, "Bind sampler\n");
 
-		uint8_t *samp = pandecode_fetch_gpu_mem(temp.buffer, 64);
-		DUMP_CL(SAMPLER, samp, "Sampler");
-		hexdump(pandecode_dump_stream, samp + AGX_SAMPLER_LENGTH, 64 - AGX_SAMPLER_LENGTH, false);
+        uint8_t *samp = pandecode_fetch_gpu_mem(temp.buffer, 64);
+        DUMP_CL(SAMPLER, samp, "Sampler");
+        hexdump(pandecode_dump_stream, samp + AGX_SAMPLER_LENGTH, 64 - AGX_SAMPLER_LENGTH, false);
 
-		return AGX_BIND_SAMPLER_LENGTH;
-	} else if (map[0] == 0x1D) {
-		DUMP_CL(BIND_UNIFORM, map, "Bind uniform");
-		return AGX_BIND_UNIFORM_LENGTH;
-	} else if (memcmp(map, zeroes, 16) == 0) {
-		/* TODO: Termination */
-		return STATE_DONE;
-	} else {
-		return 0;
-	}
+        return AGX_BIND_SAMPLER_LENGTH;
+    } else if (map[0] == 0x1D) {
+        DUMP_CL(BIND_UNIFORM, map, "Bind uniform");
+        return AGX_BIND_UNIFORM_LENGTH;
+    } else if (memcmp(map, zeroes, 16) == 0) {
+        /* TODO: Termination */
+        return STATE_DONE;
+    } else {
+        return 0;
+    }
 }
 
 static void
 pandecode_record(uint64_t va, size_t size, bool verbose)
 {
-	uint8_t *map = pandecode_fetch_gpu_mem(va, size);
-	printf("va %llx, size %zu, %p\n", va, size, map);
-	uint32_t tag = 0;
-	memcpy(&tag, map, 4);
-	printf("fetched tag %X\n", tag);
-	fflush(pandecode_dump_stream);
+    uint8_t *map = pandecode_fetch_gpu_mem(va, size);
+    printf("va %llx, size %zu, %p\n", va, size, map);
+    uint32_t tag = 0;
+    memcpy(&tag, map, 4);
+    printf("fetched tag %X\n", tag);
+    fflush(pandecode_dump_stream);
 
-	if (tag == 0x00000C00) {
-		assert(size == AGX_VIEWPORT_LENGTH);
-		DUMP_CL(VIEWPORT, map, "Viewport");
-	} else if (tag == 0x0C020000) {
-		assert(size == AGX_LINKAGE_LENGTH);
-		DUMP_CL(LINKAGE, map, "Linkage");
-	} else if (tag == 0x10000b5) {
-		assert(size == AGX_RASTERIZER_LENGTH);
-		DUMP_CL(RASTERIZER, map, "Rasterizer");
-	} else if (tag == 0x800000) {
-		assert(size == (AGX_BIND_PIPELINE_LENGTH + 4));
+    if (tag == 0x00000C00) {
+        assert(size == AGX_VIEWPORT_LENGTH);
+        DUMP_CL(VIEWPORT, map, "Viewport");
+    } else if (tag == 0x0C020000) {
+        assert(size == AGX_LINKAGE_LENGTH);
+        DUMP_CL(LINKAGE, map, "Linkage");
+    } else if (tag == 0x10000b5) {
+        assert(size == AGX_RASTERIZER_LENGTH);
+        DUMP_CL(RASTERIZER, map, "Rasterizer");
+    } else if (tag == 0x800000) {
+        assert(size == (AGX_BIND_PIPELINE_LENGTH + 4));
 //		XXX: why does this raise a bus error?
 //		uint32_t unk = 0;
 //		memcpy(map + AGX_BIND_PIPELINE_LENGTH, &unk, 4);
 
-		 bl_unpack(pandecode_dump_stream, map, BIND_PIPELINE, cmd);
-		 pandecode_stateful(cmd.pipeline, "Pipeline", pandecode_pipeline, verbose);
+        bl_unpack(pandecode_dump_stream, map, BIND_PIPELINE, cmd);
+        pandecode_stateful(cmd.pipeline, "Pipeline", pandecode_pipeline, verbose);
 
-		 /* TODO: parse */
-		 if (cmd.fs_varyings) {
-			 uint8_t *map = pandecode_fetch_gpu_mem(cmd.fs_varyings, 128);
-			 hexdump(pandecode_dump_stream, map, 128, false);
-		 }
+        /* TODO: parse */
+        if (cmd.fs_varyings) {
+            uint8_t *map = pandecode_fetch_gpu_mem(cmd.fs_varyings, 128);
+            hexdump(pandecode_dump_stream, map, 128, false);
+        }
 
-		 DUMP_UNPACKED(BIND_PIPELINE, cmd, "Bind fragment pipeline\n");
+        DUMP_UNPACKED(BIND_PIPELINE, cmd, "Bind fragment pipeline\n");
 //		 fprintf(pandecode_dump_stream, "Unk: %X\n", unk);
-	} else {
-		fprintf(pandecode_dump_stream, "Record %" PRIx64 "\n", va);
-		hexdump(pandecode_dump_stream, map, size, false);
-	}
+    } else {
+        fprintf(pandecode_dump_stream, "Record %" PRIx64 "\n", va);
+        hexdump(pandecode_dump_stream, map, size, false);
+    }
 }
 
 static unsigned
 pandecode_cmd(const uint8_t *map, bool verbose)
 {
-	if (map[0] == 0x02 && map[1] == 0x10 && map[2] == 0x00 && map[3] == 0x00) {
-		 bl_unpack(pandecode_dump_stream, map, LAUNCH, cmd);
-		 pandecode_stateful(cmd.pipeline, "Pipeline", pandecode_pipeline, verbose);
-		 DUMP_UNPACKED(LAUNCH, cmd, "Launch\n");
-		 return AGX_LAUNCH_LENGTH;
-	} else if (map[0] == 0x2E && map[1] == 0x00 && map[2] == 0x00 && map[3] == 0x40) {
-		 bl_unpack(pandecode_dump_stream, map, BIND_PIPELINE, cmd);
-		 pandecode_stateful(cmd.pipeline, "Pipeline", pandecode_pipeline, verbose);
-		 DUMP_UNPACKED(BIND_PIPELINE, cmd, "Bind vertex pipeline\n");
+    if (map[0] == 0x02 && map[1] == 0x10 && map[2] == 0x00 && map[3] == 0x00) {
+        bl_unpack(pandecode_dump_stream, map, LAUNCH, cmd);
+        pandecode_stateful(cmd.pipeline, "Pipeline", pandecode_pipeline, verbose);
+        DUMP_UNPACKED(LAUNCH, cmd, "Launch\n");
+        return AGX_LAUNCH_LENGTH;
+    } else if (map[0] == 0x2E && map[1] == 0x00 && map[2] == 0x00 && map[3] == 0x40) {
+        bl_unpack(pandecode_dump_stream, map, BIND_PIPELINE, cmd);
+        pandecode_stateful(cmd.pipeline, "Pipeline", pandecode_pipeline, verbose);
+        DUMP_UNPACKED(BIND_PIPELINE, cmd, "Bind vertex pipeline\n");
 
-		 /* Random unaligned null byte, it's pretty awful.. */
-		      if (map[AGX_BIND_PIPELINE_LENGTH]) {
-			fprintf(pandecode_dump_stream, "Unk unaligned %X\n",
-				map[AGX_BIND_PIPELINE_LENGTH]);
-		      }
+        /* Random unaligned null byte, it's pretty awful.. */
+        if (map[AGX_BIND_PIPELINE_LENGTH]) {
+            fprintf(pandecode_dump_stream, "Unk unaligned %X\n",
+                    map[AGX_BIND_PIPELINE_LENGTH]);
+        }
 
-		 return AGX_BIND_PIPELINE_LENGTH + 1;
-	} else if (map[1] == 0xc0 && map[2] == 0x61) {
-		 DUMP_CL(DRAW, map - 1, "Draw");
-		 return AGX_DRAW_LENGTH;
-	} else if (map[0] == 0x00 && map[1] == 0x00 && map[2] == 0x00 && map[3] == 0xc0) {
-		return STATE_DONE;
-	} else if (map[1] == 0x00 && map[2] == 0x00) {
-		/* No need to explicitly dump the record */
-		 bl_unpack(pandecode_dump_stream, map, RECORD, cmd);
-		 struct agx_allocation *mem = pandecode_find_mapped_gpu_mem_containing(cmd.data);
+        return AGX_BIND_PIPELINE_LENGTH + 1;
+    } else if (map[1] == 0xc0 && map[2] == 0x61) {
+        DUMP_CL(DRAW, map - 1, "Draw");
+        return AGX_DRAW_LENGTH;
+    } else if (map[0] == 0x00 && map[1] == 0x00 && map[2] == 0x00 && map[3] == 0xc0) {
+        return STATE_DONE;
+    } else if (map[1] == 0x00 && map[2] == 0x00) {
+        /* No need to explicitly dump the record */
+        bl_unpack(pandecode_dump_stream, map, RECORD, cmd);
+        struct agx_allocation *mem = pandecode_find_mapped_gpu_mem_containing(cmd.data);
 
-		 if (mem)
-			 pandecode_record(cmd.data, cmd.size_words * 4, verbose);
-		 else
-			 DUMP_UNPACKED(RECORD, cmd, "Non-existant record (XXX)\n");
+        if (mem)
+            pandecode_record(cmd.data, cmd.size_words * 4, verbose);
+        else
+            DUMP_UNPACKED(RECORD, cmd, "Non-existant record (XXX)\n");
 
-		 return AGX_RECORD_LENGTH;
-	} else if (map[0] == 0 && map[1] == 0 && map[2] == 0xC0 && map[3] == 0x00) {
-		unsigned zero[16] = { 0 };
-		assert(memcmp(map + 4, zero, sizeof(zero)) == 0);
-		return STATE_DONE;
-	} else {
-		return 0;
-	}
+        return AGX_RECORD_LENGTH;
+    } else if (map[0] == 0 && map[1] == 0 && map[2] == 0xC0 && map[3] == 0x00) {
+        unsigned zero[16] = { 0 };
+        assert(memcmp(map + 4, zero, sizeof(zero)) == 0);
+        return STATE_DONE;
+    } else {
+        return 0;
+    }
 }
 
 void
 pandecode_cmdstream(unsigned cmdbuf_index, bool verbose)
 {
-        pandecode_dump_file_open();
+    pandecode_dump_file_open();
 
-	struct agx_allocation *cmdbuf = pandecode_find_cmdbuf(cmdbuf_index);
-	assert(cmdbuf != NULL && "nonexistant command buffer");
+    struct agx_allocation *cmdbuf = pandecode_find_cmdbuf(cmdbuf_index);
+    assert(cmdbuf != NULL && "nonexistant command buffer");
 
-	if (verbose)
-		pandecode_dump_bo(cmdbuf, "Command buffer");
+    if (verbose)
+        pandecode_dump_bo(cmdbuf, "Command buffer");
 
-		FILE *fp = fopen("cmdbuf.bin", "wb");
-		fwrite(cmdbuf->map, 1 , cmdbuf->size, fp);
-		fclose(fp);
+    FILE *fp = fopen("cmdbuf.bin", "wb");
+    fwrite(cmdbuf->map, 1, cmdbuf->size, fp);
+    fclose(fp);
 
-	/* TODO: What else is in here? */
-	uint64_t *encoder = ((uint64_t *) cmdbuf->map) + 7;
-	pandecode_stateful((*encoder) /*+ 0x60*/, "Encoder", pandecode_cmd, verbose);
+    /* TODO: What else is in here? */
+    uint64_t *encoder = ((uint64_t *) cmdbuf->map) + 7;
+    pandecode_stateful((*encoder) /*+ 0x60*/, "Encoder", pandecode_cmd, verbose);
 
-	uint64_t *clear_pipeline = ((uint64_t *) cmdbuf->map) + 79;
-	if (*clear_pipeline) {
-		assert(((*clear_pipeline) & 0xF) == 0x4);
-		pandecode_stateful((*clear_pipeline) & ~0xF, "Clear pipeline", pandecode_pipeline, verbose);
-	}
+    uint64_t *clear_pipeline = ((uint64_t *) cmdbuf->map) + 79;
+    if (*clear_pipeline) {
+        assert(((*clear_pipeline) & 0xF) == 0x4);
+        pandecode_stateful((*clear_pipeline) & ~0xF, "Clear pipeline", pandecode_pipeline, verbose);
+    }
 
-	uint64_t *store_pipeline = ((uint64_t *) cmdbuf->map) + 82;
-	if (*store_pipeline) {
-		assert(((*store_pipeline) & 0xF) == 0x4);
-		pandecode_stateful((*store_pipeline) & ~0xF, "Store pipeline", pandecode_pipeline, verbose);
-	}
+    uint64_t *store_pipeline = ((uint64_t *) cmdbuf->map) + 82;
+    if (*store_pipeline) {
+        assert(((*store_pipeline) & 0xF) == 0x4);
+        pandecode_stateful((*store_pipeline) & ~0xF, "Store pipeline", pandecode_pipeline, verbose);
+    }
 
-        pandecode_map_read_write();
+    pandecode_map_read_write();
 }
 
 void
 pandecode_dump_mappings(void)
 {
-        pandecode_dump_file_open();
+    pandecode_dump_file_open();
 
-	for (unsigned i = 0; i < mmap_count; ++i) {
-		if (!mmap_array[i].map || !mmap_array[i].size)
-			continue;
+    for (unsigned i = 0; i < mmap_count; ++i) {
+        if (!mmap_array[i].map || !mmap_array[i].size)
+            continue;
 
-		assert(mmap_array[i].type < AGX_NUM_ALLOC);
+        assert(mmap_array[i].type < AGX_NUM_ALLOC);
 
-		fprintf(pandecode_dump_stream, "Buffer: type %s, gpu %llx, index %u.bin:\n\n",
-			agx_alloc_types[mmap_array[i].type],
-			mmap_array[i].gpu_va, mmap_array[i].index);
+        fprintf(pandecode_dump_stream, "Buffer: type %s, gpu %llx, index %u.bin:\n\n",
+                agx_alloc_types[mmap_array[i].type],
+                mmap_array[i].gpu_va, mmap_array[i].index);
 
-		hexdump(pandecode_dump_stream, mmap_array[i].map, mmap_array[i].size, false);
-		fprintf(pandecode_dump_stream, "\n");
-	}
+        hexdump(pandecode_dump_stream, mmap_array[i].map, mmap_array[i].size, false);
+        fprintf(pandecode_dump_stream, "\n");
+    }
 }
 
 
@@ -458,43 +458,43 @@ pandecode_dump_mappings(void)
 static void
 pandecode_add_name(struct agx_allocation *mem, uint64_t gpu_va, const char *name)
 {
-        if (!name) {
-                /* If we don't have a name, assign one */
+    if (!name) {
+        /* If we don't have a name, assign one */
 
-                snprintf(mem->name, sizeof(mem->name) - 1,
-                         "memory_%" PRIx64, gpu_va);
-        } else {
-                assert((strlen(name) + 1) < sizeof(mem->name));
-                memcpy(mem->name, name, strlen(name) + 1);
-        }
+        snprintf(mem->name, sizeof(mem->name) - 1,
+                 "memory_%" PRIx64, gpu_va);
+    } else {
+        assert((strlen(name) + 1) < sizeof(mem->name));
+        memcpy(mem->name, name, strlen(name) + 1);
+    }
 }
 
 void
 pandecode_track_alloc(struct agx_allocation alloc)
 {
-        assert((mmap_count + 1) < MAX_MAPPINGS);
-        mmap_array[mmap_count++] = alloc;
+    assert((mmap_count + 1) < MAX_MAPPINGS);
+    mmap_array[mmap_count++] = alloc;
 }
 
 static char *
 pointer_as_memory_reference(uint64_t ptr)
 {
-        struct agx_allocation *mapped;
-        char *out = malloc(128);
+    struct agx_allocation *mapped;
+    char *out = malloc(128);
 
-        /* Try to find the corresponding mapped zone */
+    /* Try to find the corresponding mapped zone */
 
-        mapped = pandecode_find_mapped_gpu_mem_containing_rw(ptr);
+    mapped = pandecode_find_mapped_gpu_mem_containing_rw(ptr);
 
-        if (mapped) {
-                snprintf(out, 128, "%s + %d", mapped->name, (int) (ptr - mapped->gpu_va));
-                return out;
-        }
-
-        /* Just use the raw address if other options are exhausted */
-
-        snprintf(out, 128, "0x%" PRIx64, ptr);
+    if (mapped) {
+        snprintf(out, 128, "%s + %d", mapped->name, (int) (ptr - mapped->gpu_va));
         return out;
+    }
+
+    /* Just use the raw address if other options are exhausted */
+
+    snprintf(out, 128, "0x%" PRIx64, ptr);
+    return out;
 
 }
 
@@ -503,45 +503,45 @@ static int pandecode_dump_frame_count = 0;
 void
 pandecode_dump_file_open(void)
 {
-        if (pandecode_dump_stream)
-                return;
+    if (pandecode_dump_stream)
+        return;
 
-        /* This does a getenv every frame, so it is possible to use
-         * setenv to change the base at runtime.
-         */
-        const char *dump_file_base = getenv("PANDECODE_DUMP_FILE") ?: "pandecode.dump";
-        if (!strcmp(dump_file_base, "stderr"))
-                pandecode_dump_stream = stderr;
-        else {
-                char buffer[1024];
-                snprintf(buffer, sizeof(buffer), "%s.%04d", dump_file_base, pandecode_dump_frame_count);
-                printf("pandecode: dump command stream to file %s\n", buffer);
-                pandecode_dump_stream = fopen(buffer, "w");
-                if (!pandecode_dump_stream)
-                        fprintf(stderr,
-                                "pandecode: failed to open command stream log file %s\n",
-                                buffer);
-        }
+    /* This does a getenv every frame, so it is possible to use
+     * setenv to change the base at runtime.
+     */
+    const char *dump_file_base = getenv("PANDECODE_DUMP_FILE") ?: "pandecode.dump";
+    if (!strcmp(dump_file_base, "stderr"))
+        pandecode_dump_stream = stderr;
+    else {
+        char buffer[1024];
+        snprintf(buffer, sizeof(buffer), "%s.%04d", dump_file_base, pandecode_dump_frame_count);
+        printf("pandecode: dump command stream to file %s\n", buffer);
+        pandecode_dump_stream = fopen(buffer, "w");
+        if (!pandecode_dump_stream)
+            fprintf(stderr,
+                    "pandecode: failed to open command stream log file %s\n",
+                    buffer);
+    }
 }
 
 static void
 pandecode_dump_file_close(void)
 {
-        if (pandecode_dump_stream && pandecode_dump_stream != stderr) {
-                fclose(pandecode_dump_stream);
-                pandecode_dump_stream = NULL;
-        }
+    if (pandecode_dump_stream && pandecode_dump_stream != stderr) {
+        fclose(pandecode_dump_stream);
+        pandecode_dump_stream = NULL;
+    }
 }
 
 void
 pandecode_next_frame(void)
 {
-        pandecode_dump_file_close();
-        pandecode_dump_frame_count++;
+    pandecode_dump_file_close();
+    pandecode_dump_frame_count++;
 }
 
 void
 pandecode_close(void)
 {
-        pandecode_dump_file_close();
+    pandecode_dump_file_close();
 }

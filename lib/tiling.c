@@ -66,9 +66,9 @@
 static uint32_t
 ash_space_bits(unsigned x)
 {
-	assert(x < TILE_WIDTH);
-	return ((x & 1) << 0) | ((x & 2) << 1) | ((x & 4) << 2) |
-		((x & 8) << 3) | ((x & 16) << 4) | ((x & 32) << 5);
+    assert(x < TILE_WIDTH);
+    return ((x & 1) << 0) | ((x & 2) << 1) | ((x & 4) << 2) |
+           ((x & 8) << 3) | ((x & 16) << 4) | ((x & 32) << 5);
 }
 
 #define TILED_UNALIGNED_TYPE(pixel_t, is_store) { \
@@ -103,91 +103,91 @@ ash_space_bits(unsigned x)
 
 static void
 ash_detile_unaligned_32(uint32_t *tiled, uint32_t *linear,
-		unsigned width, unsigned linear_pitch,
-		unsigned sx, unsigned sy, unsigned smaxx, unsigned smaxy)
+                        unsigned width, unsigned linear_pitch,
+                        unsigned sx, unsigned sy, unsigned smaxx, unsigned smaxy)
 {
-	TILED_UNALIGNED_TYPE(uint32_t, false);
+    TILED_UNALIGNED_TYPE(uint32_t, false);
 }
 
 /* Assumes sx, smaxx are both aligned to TILE_WIDTH */
 static void
 ash_detile_aligned_32(uint32_t *tiled, uint32_t *linear,
-		unsigned width, unsigned linear_pitch,
-		unsigned sx, unsigned sy, unsigned smaxx, unsigned smaxy)
+                      unsigned width, unsigned linear_pitch,
+                      unsigned sx, unsigned sy, unsigned smaxx, unsigned smaxy)
 {
-	unsigned tiles_per_row = (width + TILE_WIDTH - 1) >> TILE_SHIFT;
-	unsigned y_offs = 0;
+    unsigned tiles_per_row = (width + TILE_WIDTH - 1) >> TILE_SHIFT;
+    unsigned y_offs = 0;
 
-	for (unsigned y = sy; y < smaxy; ++y) {
-		unsigned tile_y = (y >> TILE_SHIFT);
-		unsigned tile_row = tile_y * tiles_per_row;
-		unsigned x_offs = 0;
+    for (unsigned y = sy; y < smaxy; ++y) {
+        unsigned tile_y = (y >> TILE_SHIFT);
+        unsigned tile_row = tile_y * tiles_per_row;
+        unsigned x_offs = 0;
 
-		uint32_t *linear_row = linear;
-		
-		for (unsigned x = sx; x < smaxx; x += TILE_WIDTH) {
-			unsigned tile_x = (x >> TILE_SHIFT);
-			unsigned tile_idx = (tile_row + tile_x);
-			unsigned tile_base = tile_idx * (TILE_WIDTH * TILE_HEIGHT);
-			uint32_t *tile = tiled + tile_base + y_offs;
+        uint32_t *linear_row = linear;
 
-			for (unsigned j = 0; j < TILE_WIDTH; ++j) {
-				/* Written in a funny way to avoid inner shift,
-				 * do it free as part of x_offs instead */
-				uint32_t *in = (uint32_t *) (((uint8_t *) tile) + x_offs);
-				*(linear_row++) = *in;
-				x_offs = (x_offs - (SPACE_MASK << 2)) & (SPACE_MASK << 2);
-			}
-		}
+        for (unsigned x = sx; x < smaxx; x += TILE_WIDTH) {
+            unsigned tile_x = (x >> TILE_SHIFT);
+            unsigned tile_idx = (tile_row + tile_x);
+            unsigned tile_base = tile_idx * (TILE_WIDTH * TILE_HEIGHT);
+            uint32_t *tile = tiled + tile_base + y_offs;
 
-		y_offs = (((y_offs >> 1) - SPACE_MASK) & SPACE_MASK) << 1;
-		linear += linear_pitch;
-	}
+            for (unsigned j = 0; j < TILE_WIDTH; ++j) {
+                /* Written in a funny way to avoid inner shift,
+                 * do it free as part of x_offs instead */
+                uint32_t *in = (uint32_t *) (((uint8_t *) tile) + x_offs);
+                *(linear_row++) = *in;
+                x_offs = (x_offs - (SPACE_MASK << 2)) & (SPACE_MASK << 2);
+            }
+        }
+
+        y_offs = (((y_offs >> 1) - SPACE_MASK) & SPACE_MASK) << 1;
+        linear += linear_pitch;
+    }
 }
 
 static void
 ash_detile_32(uint32_t *tiled, uint32_t *linear,
-		unsigned width, unsigned linear_pitch,
-		unsigned sx, unsigned sy, unsigned smaxx, unsigned smaxy)
+              unsigned width, unsigned linear_pitch,
+              unsigned sx, unsigned sy, unsigned smaxx, unsigned smaxy)
 {
-	if (sx & TILE_MASK) {
-		ash_detile_unaligned_32(tiled, linear, width, linear_pitch, sx & ~TILE_MASK, sy,
-				MIN2(TILE_WIDTH - (sx & TILE_MASK), smaxx - sx), smaxy);
-		sx = (sx & ~TILE_MASK) + 1;
-	}
+    if (sx & TILE_MASK) {
+        ash_detile_unaligned_32(tiled, linear, width, linear_pitch, sx & ~TILE_MASK, sy,
+                                MIN2(TILE_WIDTH - (sx & TILE_MASK), smaxx - sx), smaxy);
+        sx = (sx & ~TILE_MASK) + 1;
+    }
 
-	if ((smaxx & TILE_MASK) && (smaxx > sx)) {
-		ash_detile_unaligned_32(tiled, linear, width, linear_pitch,
-				MAX2(sx, smaxx & ~TILE_MASK), sy,
-				smaxx, smaxy);
-		smaxx = (smaxx & ~TILE_MASK);
-	}
+    if ((smaxx & TILE_MASK) && (smaxx > sx)) {
+        ash_detile_unaligned_32(tiled, linear, width, linear_pitch,
+                                MAX2(sx, smaxx & ~TILE_MASK), sy,
+                                smaxx, smaxy);
+        smaxx = (smaxx & ~TILE_MASK);
+    }
 
-	if (smaxx > sx) {
-		ash_detile_aligned_32(tiled, linear, width, linear_pitch,
-				sx, sy, smaxx, smaxy);
-	}
+    if (smaxx > sx) {
+        ash_detile_aligned_32(tiled, linear, width, linear_pitch,
+                              sx, sy, smaxx, smaxy);
+    }
 }
 
 void
 ash_detile(uint32_t *tiled, uint32_t *linear,
-		unsigned width, unsigned bpp, unsigned linear_pitch,
-		unsigned sx, unsigned sy, unsigned smaxx, unsigned smaxy)
+           unsigned width, unsigned bpp, unsigned linear_pitch,
+           unsigned sx, unsigned sy, unsigned smaxx, unsigned smaxy)
 {
-	/* TODO: parametrize with macro magic */
-	assert(bpp == 32);
+    /* TODO: parametrize with macro magic */
+    assert(bpp == 32);
 
-	TILED_UNALIGNED_TYPE(uint32_t, false);
+    TILED_UNALIGNED_TYPE(uint32_t, false);
 }
 
 
 void
 ash_tile(uint32_t *tiled, uint32_t *linear,
-		unsigned width, unsigned bpp, unsigned linear_pitch,
-		unsigned sx, unsigned sy, unsigned smaxx, unsigned smaxy)
+         unsigned width, unsigned bpp, unsigned linear_pitch,
+         unsigned sx, unsigned sy, unsigned smaxx, unsigned smaxy)
 {
-	/* TODO: parametrize with macro magic */
-	assert(bpp == 32);
+    /* TODO: parametrize with macro magic */
+    assert(bpp == 32);
 
-	TILED_UNALIGNED_TYPE(uint32_t, true);
+    TILED_UNALIGNED_TYPE(uint32_t, true);
 }
