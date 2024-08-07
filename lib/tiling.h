@@ -25,12 +25,12 @@
 #define __ASH_DETILE_H
 
 void ash_detile(uint32_t *tiled, uint32_t *linear,
-		unsigned width, unsigned bpp, unsigned linear_pitch,
-		unsigned sx, unsigned sy, unsigned smaxx, unsigned smaxy);
+                unsigned width, unsigned bpp, unsigned linear_pitch,
+                unsigned sx, unsigned sy, unsigned smaxx, unsigned smaxy);
 
 void
 ash_tile(uint32_t *tiled, uint32_t *linear,
-		unsigned width, unsigned bpp, unsigned linear_pitch,
-		unsigned sx, unsigned sy, unsigned smaxx, unsigned smaxy);
+         unsigned width, unsigned bpp, unsigned linear_pitch,
+         unsigned sx, unsigned sy, unsigned smaxx, unsigned smaxy);
 
 #endif
