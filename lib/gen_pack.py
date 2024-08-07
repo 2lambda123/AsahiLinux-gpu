@@ -23,9 +23,9 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 # IN THE SOFTWARE.
 
-import xml.parsers.expat
-import sys
 import operator
+import sys
+import xml.parsers.expat
 from functools import reduce
 
 global_prefix = "agx"
