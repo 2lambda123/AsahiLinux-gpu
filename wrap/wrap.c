@@ -65,17 +65,10 @@ wrap_IOConnectCallMethod(
 	size_t		*outputStructCntP)	// In/Out
 {
 	/* Heuristic guess which connection is Metal, skip over I/O from everything else */
-	bool bail = false;
-
-	if (metal_connection == 0) {
-		if (selector == AGX_SELECTOR_SET_API)
-			metal_connection = connection;
-		else
-			bail = true;
-	} else if (metal_connection != connection)
-		bail = true;
-
-	if (bail)
+	printf("Selector %u, %X, %X\n", selector, connection, metal_connection);
+	if (selector == AGX_SELECTOR_SET_API)
+		metal_connection = connection;
+	else if (metal_connection != connection)
 		return IOConnectCallMethod(connection, selector, input, inputCnt, inputStruct, inputStructCnt, output, outputCnt, outputStruct, outputStructCntP);
 
 	/* Check the arguments make sense */
@@ -159,7 +152,13 @@ wrap_IOConnectCallMethod(
 		assert(inputCnt == 2);
 		assert((*outputStructCntP) == 0x10);
 		uint64_t *inp = (uint64_t *) input;
-		assert(inp[1] == 1 || inp[1] == 0);
+
+		uint8_t type = inp[1];
+
+		assert(type <= 2);
+		if (type == 2)
+			printf("(cmdbuf with error reporting)\n");
+
 		uint64_t *ptr = (uint64_t *) outputStruct;
 		uint32_t *words = (uint32_t *) (ptr + 1);
 

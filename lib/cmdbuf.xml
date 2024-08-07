@@ -71,20 +71,93 @@
     <field name="Unk 100" size="28" start="100" type="hex"/>
   </struct>
 
+  <enum name="Layout">
+    <value name="Linear" value="0"/>
+    <!-- Morton order with 64x64 tiles -->
+    <value name="Tiled 64x64" value="2"/>
+  </enum>
+
+  <enum name="Channels">
+    <value name="8x1" value="0x00"/>
+    <value name="16x1" value="0x09"/>
+    <value name="8x2" value="0x0A"/>
+    <value name="5_6_5" value="0x0B"/>
+    <value name="4_4_4_4" value="0x0C"/>
+    <value name="1_5_5_5" value="0x0D"/>
+    <value name="5_5_5_1" value="0x0E"/>
+    <value name="32x1" value="0x21"/>
+    <value name="16x2" value="0x23"/>
+    <value name="11_11_10" value="0x25"/>
+    <value name="10_10_10_2" value="0x26"/>
+    <value name="9_9_9_E5" value="0x27"/>
+    <value name="8x4" value="0x28"/>
+    <value name="32x2" value="0x31"/>
+    <value name="16x4" value="0x32"/>
+    <value name="32x4" value="0x38"/>
+    <value name="GBGR 422" value="0x40"/> <!-- Subsampled, swizzle BRG1 -->
+    <value name="BGRG 422" value="0x41"/> <!-- Subsampled, swizzle BRG1 -->
+
+    <!-- Compressed -->
+    <value name="PVRTC 2bpp" value="0x50"/>
+    <value name="PVRTC 4bpp" value="0x51"/>
+
+    <value name="ETC2 RGB8" value="0x58"/>
+    <value name="ETC2 RGB8A" value="0x59"/>
+    <value name="ETC2 RGB8A1" value="0x5A"/>
+    <value name="EAC R11" value="0x5B"/>
+    <value name="EAC RG11" value="0x5C"/>
+
+    <value name="ASTC 4x4 LDR" value="0x60"/>
+    <value name="ASTC 5x4 LDR" value="0x61"/>
+    <value name="ASTC 5x5 LDR" value="0x62"/>
+    <value name="ASTC 6x5 LDR" value="0x63"/>
+    <value name="ASTC 6x6 LDR" value="0x64"/>
+    <value name="ASTC 8x5 LDR" value="0x65"/>
+    <value name="ASTC 8x6 LDR" value="0x66"/>
+    <value name="ASTC 8x8 LDR" value="0x67"/>
+    <value name="ASTC 10x5 LDR" value="0x68"/>
+    <value name="ASTC 10x6 LDR" value="0x69"/>
+    <value name="ASTC 10x8 LDR" value="0x6A"/>
+    <value name="ASTC 10x10 LDR" value="0x6B"/>
+    <value name="ASTC 12x10 LDR" value="0x6C"/>
+    <value name="ASTC 12x12 LDR" value="0x6D"/>
+
+    <value name="BC1" value="0x74"/>
+    <value name="BC2" value="0x75"/>
+    <value name="BC3" value="0x76"/>
+    <value name="BC4" value="0x77"/>
+    <value name="BC5" value="0x78"/>
+    <value name="BC6H" value="0x79"/>
+    <value name="BC6H Ufloat" value="0x7A"/>
+    <value name="BC7" value="0x7B"/>
+  </enum>
+
+  <enum name="Texture Type">
+    <value name="Unorm" value="0"/>
+    <value name="Snorm" value="1"/>
+    <value name="Uint" value="2"/>
+    <value name="Sint" value="3"/>
+    <value name="Float" value="4"/>
+    <value name="XR" value="5"/>
+  </enum>
+
   <!-- Payloads follow, right-shifted by 4 because of course -->
   <struct name="Texture" size="16">
-    <!-- See notes for a listing, TODO: enumify -->
-    <field name="Format" size="16" start="0" type="hex"/>
+    <field name="Unknown" size="4" start="0" type="hex" default="0x2"/>
+    <field name="Layout" size="2" start="4" type="Layout"/>
+    <field name="Channels" size="7" start="6" type="Channels"/>
+    <field name="Type" size="3" start="13" type="Texture Type"/>
     <field name="Swizzle R" size="3" start="16" type="Channel" default="R"/>
     <field name="Swizzle G" size="3" start="19" type="Channel" default="G"/>
     <field name="Swizzle B" size="3" start="22" type="Channel" default="B"/>
     <field name="Swizzle A" size="3" start="25" type="Channel" default="A"/>
     <field name="Width" size="14" start="28" type="uint" modifier="minus(1)"/>
     <field name="Height" size="14" start="42" type="uint" modifier="minus(1)"/>
-    <field name="Depth" size="14" start="56" type="uint" modifier="minus(1)"/> <!-- TODO: confirm -->
-    <field name="Unk 1" size="38" start="70" type="hex"/>
+    <field name="Unk 1" size="36" start="66" type="address" modifier="shr(4)"/>
     <field name="sRGB" size="1" start="108" type="bool"/>
-    <field name="Unk 2" size="19" start="109" type="hex"/>
+    <field name="Unk 2" size="1" start="109" type="bool"/>
+    <field name="Stride" size="16" start="110" type="hex" modifier="shr(4)"/>
+    <field name="Unk 3" size="2" start="126" type="hex"/>
   </struct>
 
   <enum name="Wrap">
@@ -123,10 +196,15 @@
 
   <!--- Identified by tag? -->
   <struct name="Viewport" size="40">
-    <field name="Tag 1" size="32" start="0:0" type="hex" default="0xc00"/>
-    <field name="Tag 2" size="32" start="1:0" type="hex" default="0x18"/>
-    <field name="Tag 3" size="32" start="2:0" type="hex" default="0x12"/>
-    <field name="Tag 4" size="32" start="3:0" type="hex" default="0x0"/>
+    <field name="Tag" size="32" start="0:0" type="hex" default="0xc00"/>
+
+    <!-- Acts like a scissor at 32x32 tile boundaries, ignored unless clip tile is set -->
+    <field name="Max tile X" size="9" start="1:0" type="uint" modifier="minus(1)"/>
+    <field name="Min tile X" size="9" start="1:16" type="uint"/>
+    <field name="Clip tile" size="1" start="1:31" type="bool"/>
+    <field name="Max tile Y" size="9" start="2:0" type="uint" modifier="minus(1)"/>
+    <field name="Min tile Y" size="9" start="2:16" type="uint"/>
+
     <field name="Translate X" size="32" start="4:0" type="float"/>
     <field name="Scale X" size="32" start="5:0" type="float"/>
     <field name="Translate Y" size="32" start="6:0" type="float"/>
@@ -152,6 +230,7 @@
   <struct name="Rasterizer" size="28">
     <field name="Tag" size="32" start="0:0" type="hex" default="0x10000b5"/>
     <field name="Unk 1" size="1" start="1:9" type="hex" default="0x1"/>
+    <field name="Depth clamp" size="1" start="1:16" type="bool" default="false"/>
     <field name="Unk ZS" size="1" start="1:18" type="hex" default="0x1"/>
     <field name="Unk 2" size="2" start="1:19" type="hex" default="0x0"/>
     <field name="Unk fill lines" size="1" start="1:26" type="hex" default="0x0"/>
@@ -163,6 +242,7 @@
     <field name="Tag" size="32" start="0:0" type="hex" default="0x200000"/>
     <field name="Cull front" size="1" start="1:0" type="bool"/>
     <field name="Cull back" size="1" start="1:1" type="bool"/>
+    <field name="Unk GL" size="1" start="1:3" type="bool"/>
     <field name="Depth clip" size="1" start="1:10" type="bool"/>
     <field name="Depth clamp" size="1" start="1:11" type="bool"/>
     <field name="Front face CCW" size="1" start="1:16" type="bool"/>
@@ -264,12 +344,38 @@
   </struct>
 
   <!--- Command to issue a direct non-indexed draw -->
-  <struct name="Draw" size="15">
-    <field name="Primitive" size="8" start="0:0" type="Primitive"/>
-    <field name="Command" size="16" start="0:8" type="hex" default="0x61c0"/>
-    <field name="Vertex count" size="32" start="0:24" type="uint"/>
-    <field name="Instance count" size="32" start="1:24" type="uint"/> <!-- must be nonzero -->
-    <field name="Vertex start" size="32" start="2:24" type="uint"/>
+  <struct name="Draw" size="16">
+    <field name="Unk" size="8" start="0:0" type="hex" default="0x0"/>
+    <field name="Primitive" size="8" start="0:8" type="Primitive"/>
+    <field name="Command" size="16" start="0:16" type="hex" default="0x61c0"/>
+    <field name="Vertex count" size="32" start="1:0" type="uint"/>
+    <field name="Instance count" size="32" start="2:0" type="uint"/> <!-- must be nonzero -->
+    <field name="Vertex start" size="32" start="3:0" type="uint"/>
+  </struct>
+
+  <!-- U8 is a guess, not tested -->
+  <enum name="Index size">
+    <value name="U8" value="0"/>
+    <value name="U16" value="1"/>
+    <value name="U32" value="2"/>
+  </enum>
+
+  <struct name="Indexed draw" size="32">
+    <field name="Unk 1" size="8" start="0:0" type="hex" default="0x1"/>
+    <field name="Command" size="24" start="0:8" type="hex" default="0x400000"/>
+    <field name="Restart index" size="32" start="1:0" type="hex"/>
+    <field name="Unk 2a" size="8" start="2:0" type="hex" default="0x15"/>
+    <field name="Primitive" size="8" start="2:8" type="Primitive"/>
+    <field name="Restart enable" size="1" start="2:16" type="bool"/> <!-- Metal sets this bit for strips -->
+    <field name="Index size" size="2" start="2:17" type="Index size"/>
+    <field name="Unk 2b" size="1" start="2:19" type="hex"/>
+    <field name="Unk 2c" size="4" start="2:20" type="hex" default="0xF"/>
+    <field name="Unk 2d" size="8" start="2:24" type="hex" default="0x61"/>
+    <field name="Index buffer offset" size="32" start="3:0" type="hex"/>
+    <field name="Index count" size="32" start="4:0" type="uint"/>
+    <field name="Instance count" size="32" start="5:0" type="uint"/>
+    <field name="Base vertex" size="32" start="6:0" type="uint"/>
+    <field name="Index buffer size" size="32" start="7:0" type="uint" modifier="shr(2)"/>
   </struct>
 
   <!--- Command to launch a direct compute kernel -->

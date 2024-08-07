@@ -27,12 +27,18 @@ demo_viewport(struct agx_allocator *allocator)
 {
 	struct agx_ptr t = agx_allocate(allocator, AGX_VIEWPORT_LENGTH);
 	bl_pack(t.map, VIEWPORT, cfg) {
-		cfg.translate_x = WIDTH / 2;
-		cfg.scale_x = WIDTH / 2;
+		cfg.translate_x = (WIDTH ) / 2;
+		cfg.scale_x = WIDTH + 400/*/ 2*/;
 		cfg.translate_y = HEIGHT / 2;
-		cfg.scale_y = -(HEIGHT / 2);
+		cfg.scale_y = -(HEIGHT +400/*/ 2*/);
 		cfg.near_z = 0.0f;
 		cfg.far_z = 1.0f;
+
+		cfg.min_tile_x = 0 / 32;
+		cfg.max_tile_x = DIV_ROUND_UP(800, 32);
+		cfg.min_tile_y = 0 / 32;
+		cfg.max_tile_y = DIV_ROUND_UP(600, 32);
+		cfg.clip_tile = false;
 	};
 
 	return t.gpu_va;
@@ -47,17 +53,21 @@ demo_texture(struct agx_allocator *allocator)
 	struct agx_ptr t = agx_allocate(allocator, AGX_TEXTURE_LENGTH);
 	assert((texture_payload.gpu_va & 0xFF) == 0);
 	bl_pack(t.map, TEXTURE, cfg) {
-		cfg.format = 0xa22;
-		cfg.swizzle_r = AGX_CHANNEL_1;
+		cfg.layout = AGX_LAYOUT_LINEAR;
+		cfg.channels = AGX_CHANNELS_8X4;
+		cfg.type = AGX_TEXTURE_TYPE_UNORM;
+		cfg.swizzle_r = AGX_CHANNEL_R;
 		cfg.swizzle_g = AGX_CHANNEL_G;
 		cfg.swizzle_b = AGX_CHANNEL_B;
 		cfg.swizzle_a = AGX_CHANNEL_A;
 		cfg.width = tex_width;
 		cfg.height = tex_height;
-		cfg.depth = 1;
-		cfg.unk_1 = (texture_payload.gpu_va >> 8); // a nibble enabling compression seems to be mixed in here
-		cfg.unk_2 = 0x20000;
+		cfg.unk_1 = texture_payload.gpu_va; // a nibble enabling compression seems to be mixed in here
+		cfg.stride = (tex_width * 4) - 16;
+		cfg.srgb = false;
+		cfg.unk_2 = false;
 	};
+	uint32_t *m = (uint32_t *) (((uint8_t *) t.map) + AGX_TEXTURE_LENGTH);
 
 	return t.gpu_va;
 }
@@ -86,7 +96,7 @@ static uint64_t
 demo_clear_color(struct agx_allocator *allocator)
 {
 	__fp16 colour[] = {
-		0.1f, 0.1f, 0.1f, 1.0f
+		0.3f, 0.2f, 0.1f, 1.0f
 	};
 
 	return agx_upload(allocator, colour, sizeof(colour));
@@ -97,7 +107,7 @@ demo_render_target(struct agx_allocator *allocator, struct agx_allocation *frame
 {
 	struct agx_ptr t = agx_allocate(allocator, AGX_RENDER_TARGET_LENGTH);
 	bl_pack(t.map, RENDER_TARGET, cfg) {
-		cfg.unk_0 = 0xa22;
+		cfg.unk_0 = 0xa02;
 		cfg.swizzle_r = AGX_CHANNEL_B;
 		cfg.swizzle_g = AGX_CHANNEL_G;
 		cfg.swizzle_b = AGX_CHANNEL_R;
@@ -105,7 +115,7 @@ demo_render_target(struct agx_allocator *allocator, struct agx_allocation *frame
 		cfg.width = WIDTH;
 		cfg.height = HEIGHT;
 		cfg.buffer = framebuffer->gpu_va;
-		cfg.unk_100 = 0x1000000;
+		cfg.unk_100 = ((WIDTH - 1) * 4) * 16;//(WIDTH - 1) * 64;
 	};
 
 	return t.gpu_va;
@@ -132,6 +142,7 @@ demo_launch_fragment(struct agx_allocator *allocator, struct agx_allocation *fsb
 {
 	/* Varying descriptor */
 	uint8_t unk_aux0[] = {
+#if 0
 		0x03, 0x03, 0x00, 0x00, 0x0C, 0x00, 0x00, 0x00, 0x1D, 0x01, 0x01, 0x00,
 		0x03, 0x03, 0x00, 0x00, 0x0C, 0x00, 0x00, 0x00, 0x1D, 0x01, 0x01, 0x00,
 		0x03, 0x03, 0x00, 0x00, 0x0C, 0x00, 0x00, 0x00, 0x1D, 0x01, 0x01, 0x00,
@@ -140,8 +151,9 @@ demo_launch_fragment(struct agx_allocator *allocator, struct agx_allocation *fsb
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		0x00, 0x00, 0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		0x00, 0x00, 0x00, 0x00, 0x00,
+#endif
 
-#if 0
+#if 1
 		0x05, 0x05, 0x00, 0x00, 0x0C, 0x00, 0x00, 0x00, 0x1F, 0x01, 0x01, 0x00,
 		0x05, 0x05, 0x00, 0x00, 0x0C, 0x00, 0x00, 0x00, 0x1F, 0x01, 0x01, 0x00,
 		0x05, 0x05, 0x00, 0x00, 0x0C, 0x00, 0x00, 0x00, 0x1F, 0x01, 0x01, 0x00,
@@ -161,7 +173,7 @@ demo_launch_fragment(struct agx_allocator *allocator, struct agx_allocation *fsb
 	uint32_t unk[] = {
 		0x800000,
 		0x21212, // upper nibble is input count TODO: xmlify
-		fsbuf->gpu_va + 0xC0, // XXX: dynalloc -- fragment shader
+		fsbuf->gpu_va + (128*8), // XXX: dynalloc -- fragment shader
 		agx_upload(shaders, unk_aux0, sizeof(unk_aux0)),
 		0x0,
 	};
@@ -256,8 +268,30 @@ demo_cull(struct agx_allocator *allocator)
 static uint64_t
 demo_unk14(struct agx_allocator *allocator)
 {
+	/* Second word may relate to scissors */
 	uint32_t unk[] = {
 		0x100, 0x0,
+	};
+
+	return agx_upload(allocator, unk, sizeof(unk));
+}
+
+static uint64_t
+demo_scissor(struct agx_allocator *allocator)
+{
+	uint32_t unk[] = {
+#if 0
+		(200 | (200 << 16)),
+		(200 | (200 << 16)),
+		fui(0.0),
+		fui(1.0),
+#endif
+
+		(10 | (10 << 16)),
+		(10 | (10 << 16)),
+		fui(0.0),
+		fui(1.0)
+
 	};
 
 	return agx_upload(allocator, unk, sizeof(unk));
@@ -336,19 +370,32 @@ demo_unk2(struct agx_allocator *allocator, struct agx_allocator *shaders, struct
 	out += 8;
 
 	temp = make_ptr40(0x02, 0x00, 0x00, demo_unk14(allocator));
-	memcpy(out, &temp, 8);
-	out += 8;
+	memcpy(out, &temp, 7);
+	out += 7;
+
+	uint32_t ib[] = {
+		0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
+		18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33,
+		34, 35,
+	};
+
+	uint64_t ib_ptr = agx_upload(allocator, ib, sizeof(ib));
 
 	/* Must be after the rest */
 
-	bl_pack(out, DRAW, cfg) {
+	bl_pack(out, INDEXED_DRAW, cfg) {
+		cfg.restart_index = 0xFFFFFFFF;
+		cfg.unk_2a = (ib_ptr >> 32);
 		cfg.primitive = AGX_PRIMITIVE_TRIANGLES;
-		cfg.vertex_start = 0;
-		cfg.vertex_count = 36;
+		cfg.restart_enable = false;
+		cfg.index_size = 2;
+		cfg.index_buffer_offset = (ib_ptr & 0xFFFFFFFF);
+		cfg.index_count = 256;
 		cfg.instance_count = 1;
+		cfg.index_buffer_size = sizeof(ib);
 	};
 
-	out += AGX_DRAW_LENGTH;
+	out += AGX_INDEXED_DRAW_LENGTH;
 
 	uint8_t stop[] = {
 		0x00, 0x00, 0x00, 0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, // Stop
@@ -394,7 +441,7 @@ demo_vsbuf(uint64_t *buf, struct agx_allocator *allocator, struct agx_allocator 
 {
 	uint32_t vs_offs = demo_vertex_shader(shader_pool);
 
-	float uni[4 * 36 * 2];
+	float uni[4 * 36 * 3];
 	unsigned count = 0;
 
 	float verts[8][4] = {
@@ -424,13 +471,23 @@ demo_vsbuf(uint64_t *buf, struct agx_allocator *allocator, struct agx_allocator 
 		{ 2, 6, 7, 3 }
 	};
 
+	float normal[6][3] = {
+		{ 0.0, 0.0, -1.0 },
+		{ 1.0, 0.0, 0.0 },
+		{ 0.0, 0.0, 1.0 },
+		{ -1.0, 0.0, 0.0 },
+		{ 0.0, -1.0, 0.0 },
+		{ 0.0, 1.0, 0.0 }
+	};
+
 	unsigned visit[6] = {0, 1, 2, 2, 3, 0 };
 	for (unsigned i = 0; i < 6; ++i) {
 		for (unsigned j = 0; j < 6; ++j) {
 			unsigned vert = quads[i][visit[j]];
 			memcpy(uni + count + 0, verts[vert], 16);
 			memcpy(uni + count + 4, vert_texcoord[visit[j]], 16);
-			count += 8;
+			memcpy(uni + count + 8, normal[i], 12);
+			count += 12;
 		}
 	}
 
@@ -460,22 +517,22 @@ demo_fsbuf(uint64_t *buf, struct agx_allocator *allocator, struct agx_allocation
 	memset(buf, 0, 128 * 8);
 
 	/* Clear shader */
-	buf[ 8] = demo_bind_arg_words(demo_clear_color(allocator), 6, 2);
-	buf[ 9] = 0x2010bd4d | (0x40dull << 32) | ((uint64_t) (clear_offs & 0xFFFF) << 48);
-	buf[10] = ((uint64_t) clear_offs >> 16) | (0x18d << 16) | (0x00880100ull << 32);
+	buf[ 64] = demo_bind_arg_words(demo_clear_color(allocator), 6, 2);
+	buf[ 65] = 0x2010bd4d | (0x40dull << 32) | ((uint64_t) (clear_offs & 0xFFFF) << 48);
+	buf[ 66] = ((uint64_t) clear_offs >> 16) | (0x18d << 16) | (0x00880100ull << 32);
 
 	/* AUX3 */
-	buf[16] = PTR40(dd, 00, 10, demo_render_target(allocator, framebuffer));
-	buf[17] = demo_bind_arg_words(demo_unk0_5(allocator), 2, 2);
-	buf[18] = 0x2010bd4d | (0x000dull << 32) | ((uint64_t) (aux3_offs & 0xFFFF) << 48);
-	buf[19] = ((uint64_t) aux3_offs >> 16) | (0x18d << 16) | (0x00880100ull << 32);
+	buf[48] = PTR40(dd, 00, 10, demo_render_target(allocator, framebuffer));
+	buf[49] = demo_bind_arg_words(demo_unk0_5(allocator), 2, 2);
+	buf[50] = 0x2010bd4d | (0x000dull << 32) | ((uint64_t) (aux3_offs & 0xFFFF) << 48);
+	buf[51] = ((uint64_t) aux3_offs >> 16) | (0x18d << 16) | (0x00880100ull << 32);
 
 	/* Fragment shader */
-	buf[24] = PTR40(dd, 00, 10, demo_texture(allocator));
-	buf[25] = PTR40(9d, 00, 10, demo_sampler(allocator));
-	buf[26] = 0x2010bd4d | (0x10dull << 32) | ((uint64_t) (fs_offs & 0xFFFF) << 48);
-	buf[27] = (fs_offs >> 16) | (0x208d << 16) | (0xf3580100ull << 32);
-	buf[28] = 0x00880002 | (0xc080ull << 32);
+	buf[128] = PTR40(dd, 00, 10, demo_texture(allocator));
+	buf[129] = PTR40(9d, 00, 10, demo_sampler(allocator));
+	buf[130] = 0x2010bd4d | (0x10dull << 32) | ((uint64_t) (fs_offs & 0xFFFF) << 48);
+	buf[131] = (fs_offs >> 16) | (0x208d << 16) | (0xf3580100ull << 32);
+	buf[132] = 0x00880002 | (0xFFFFFFFFull << 32);
 }
 
 struct cmdbuf {
@@ -524,6 +581,7 @@ demo_cmdbuf(uint64_t *buf, struct agx_allocator *allocator,
 		struct agx_allocation *vsbuf,
 		struct agx_allocation *fsbuf,
 		struct agx_allocation *framebuffer,
+		struct agx_allocation *zbuf,
 		struct agx_allocator *shaders)
 {
 	demo_vsbuf((uint64_t *) vsbuf->map, allocator, shaders);
@@ -538,11 +596,11 @@ demo_cmdbuf(uint64_t *buf, struct agx_allocator *allocator,
 
 	/* Vertex stuff */
 	EMIT32(cmdbuf, 0x10000);
-	EMIT32(cmdbuf, 0x780); // Compute: 0x188
+	EMIT32(cmdbuf, 0x798); // Compute: 0x188
 	EMIT32(cmdbuf, 0x7);
 	EMIT_ZERO_WORDS(cmdbuf, 5);
 	EMIT32(cmdbuf, 0x758); // Compute: 0x180
-	EMIT32(cmdbuf, 0x18);  // Compute: 0x0
+	EMIT32(cmdbuf, 0x30);  // Compute: 0x0
 	EMIT32(cmdbuf, 0x758); // Compute: 0x0
 	EMIT32(cmdbuf, 0x728); // Compute: 0x150
 
@@ -598,13 +656,13 @@ demo_cmdbuf(uint64_t *buf, struct agx_allocator *allocator,
 
 	EMIT32(cmdbuf, 0xffff8002); // 0x270
 	EMIT32(cmdbuf, 0);
-	EMIT64(cmdbuf, fsbuf->gpu_va + 0x44);// clear -- XXX: dynalloc
+	EMIT64(cmdbuf, fsbuf->gpu_va + 0x204);// clear -- XXX: dynalloc
 	EMIT32(cmdbuf, 0);
 	EMIT32(cmdbuf, 0);
 	EMIT32(cmdbuf, 0);
 	EMIT32(cmdbuf, 0x12);
-	EMIT64(cmdbuf, fsbuf->gpu_va + 0x84); // AUX3 -- 0x290 -- XXX: dynalloc
-	EMIT64(cmdbuf, demo_zero(allocator, 0x1000));
+	EMIT64(cmdbuf, fsbuf->gpu_va + 0x184); // AUX3 -- 0x290 -- XXX: dynalloc
+	EMIT64(cmdbuf, demo_scissor(allocator));
 	EMIT64(cmdbuf, demo_zero(allocator, 0x1000));
 	EMIT64(cmdbuf, 0);
 
@@ -620,8 +678,8 @@ demo_cmdbuf(uint64_t *buf, struct agx_allocator *allocator,
 
 	EMIT_ZERO_WORDS(cmdbuf, 48);
 
-	float depth_clear = 1.0;
-	uint8_t stencil_clear = 0;
+	float depth_clear = rand();//1.0;
+	uint8_t stencil_clear = 0x11;
 
 	EMIT64(cmdbuf, 0); // 0x450
 	EMIT32(cmdbuf, fui(depth_clear));
@@ -644,7 +702,7 @@ demo_cmdbuf(uint64_t *buf, struct agx_allocator *allocator,
 
 	EMIT32(cmdbuf, 0);
 	EMIT32(cmdbuf, 0x12);
-	EMIT32(cmdbuf, fsbuf->gpu_va + 0x84); // AUX3
+	EMIT32(cmdbuf, fsbuf->gpu_va + 0x184); // AUX3
 	EMIT32(cmdbuf, 0);
 
 	EMIT_ZERO_WORDS(cmdbuf, 44);
@@ -692,16 +750,36 @@ demo_cmdbuf(uint64_t *buf, struct agx_allocator *allocator,
 	EMIT_ZERO_WORDS(cmdbuf, 72);
 
 	EMIT32(cmdbuf, 0); // 0x760
-	EMIT32(cmdbuf, 0x1); // number of attachments (includes depth/stencil) stored to
+	EMIT32(cmdbuf, 0x2); // number of attachments (includes depth/stencil) stored to
 
 	/* A single attachment follows, depth/stencil have their own attachments */
 	{
 		EMIT64(cmdbuf, 0x100 | (framebuffer->gpu_va << 16));
 		EMIT32(cmdbuf, 0xa0000);
-		EMIT32(cmdbuf, 0x4c000000); // 80000000 also observed, and 8c000 and.. offset into the tilebuffer I imagine
-		EMIT32(cmdbuf, 0x0c001d); // C0020  also observed
-		EMIT32(cmdbuf, 0x640000);
+		EMIT32(cmdbuf, 0x80000000); // 80000000 also observed, and 8c000 and.. offset into the tilebuffer I imagine
+		EMIT32(cmdbuf, 0x0c0025); // C0020  also observed
+		EMIT32(cmdbuf, 0x320000);
 	}
+
+	{
+		EMIT64(cmdbuf, 0x100 | (zbuf->gpu_va << 16));
+		EMIT32(cmdbuf, 0xc0000);
+		EMIT32(cmdbuf, 0x80000000); // 80000000 also observed, and 8c000 and.. offset into the tilebuffer I imagine
+		EMIT32(cmdbuf, 0x0c0025); // C0020  also observed
+		EMIT32(cmdbuf, 0x320000);
+	}
+
+
+   uint8_t *m = (uint8_t *) cmdbuf->map;
+   *((uint64_t *) (m + 0x2B0)) = 0x80044;
+   *((uint64_t *) (m + 0x2C8)) = 0x12B8383ull;
+   *((uint64_t *) (m + 0x2D0)) = zbuf->gpu_va;
+   *((uint64_t *) (m + 0x2E8)) = zbuf->gpu_va + 800*600*4;
+   *((uint64_t *) (m + 0x2F8)) = zbuf->gpu_va;   // <-- this is the only one that's actually written
+   *((uint64_t *) (m + 0x310)) = zbuf->gpu_va + 800*600*4;
+   *((uint64_t *) (m + 0x550)) = zbuf->gpu_va;
+   *((uint64_t *) (m + 0x558)) = zbuf->gpu_va + 800*600*4;
+   *((uint64_t *) (m + 0x580)) = 0x1;
 }
 
 static struct agx_map_entry
@@ -724,7 +802,7 @@ demo_map_header(uint64_t cmdbuf_id, uint64_t encoder_id, unsigned count)
 		.unk3 = 0x528, // 1320
 		.encoder_id = encoder_id,
 		.unk6 = 0x0,
-		.unk7 = 0x780, // 1920
+		.unk7 = 0x798, // 1920
 
 		/* +1 for the sentinel ending */
 		.nr_entries_1 = count + 1,
@@ -774,40 +852,34 @@ void demo(mach_port_t connection, bool offscreen)
 		struct agx_allocation dummy = agx_alloc_mem(connection, 4096, AGX_MEMORY_TYPE_FRAMEBUFFER, false);
 	}
 
+	struct agx_allocation vsbuf = agx_alloc_mem(connection, 0x8000, AGX_MEMORY_TYPE_CMDBUF_32, false);
 	struct agx_allocation shader = agx_alloc_mem(connection, 0x10000, AGX_MEMORY_TYPE_SHADER, false);
+	struct agx_allocation fsbuf = agx_alloc_mem(connection, 0x8000, AGX_MEMORY_TYPE_CMDBUF_32, false);
 
 	struct agx_allocator shader_pool = { .backing = shader, };
 
 	struct agx_allocation bo = agx_alloc_mem(connection, 1920*1080*4*2, AGX_MEMORY_TYPE_FRAMEBUFFER, false);
 	struct agx_allocator allocator = { .backing = bo };
 
-	struct agx_allocation vsbuf = agx_alloc_mem(connection, 0x8000, AGX_MEMORY_TYPE_CMDBUF_32, false);
-	struct agx_allocation fsbuf = agx_alloc_mem(connection, 0x8000, AGX_MEMORY_TYPE_CMDBUF_32, false);
 	struct agx_allocation framebuffer = agx_alloc_mem(connection, 
 		ALIGN_POT(WIDTH, 64) * ALIGN_POT(HEIGHT, 64) * 4,
 		AGX_MEMORY_TYPE_FRAMEBUFFER, false);
 
-	struct agx_allocation cmdbuf = agx_alloc_cmdbuf(connection, 0x4000, true);
+	struct agx_allocation zbuf = agx_alloc_mem(connection, 
+		ALIGN_POT(WIDTH, 64) * ALIGN_POT(HEIGHT, 64) * 16,
+		AGX_MEMORY_TYPE_FRAMEBUFFER, false);
 
 	struct agx_allocation memmap = agx_alloc_cmdbuf(connection, 0x4000, false);
+	struct agx_allocation cmdbuf = agx_alloc_cmdbuf(connection, 0x4000, true);
 
 	{ 
 		texture_payload = agx_alloc_mem(connection, ((((tex_width + 64) * (tex_height + 64) * 4) + 64) + 4095) & ~4095,
 				AGX_MEMORY_TYPE_FRAMEBUFFER, false);
-		uint32_t *rgba = malloc((tex_width + 64) * (tex_height + 64) * 4);
 
-		FILE *fp = fopen("/Users/bloom/Downloads/Hooves.bmp", "rb");
-		fseek(fp, 0x8a, SEEK_SET);
-		fread(rgba, 1, tex_width * tex_height * 4, fp);
+		FILE *fp = fopen("foo.rgba", "rb");
+		fread(texture_payload.map, 1, tex_width * tex_height * 4, fp);
 		fclose(fp);
-
-		ash_tile(texture_payload.map, rgba,
-				tex_width, 32, tex_width,
-				0, 0, tex_width, tex_height);
-		free(rgba);
 	}
-
-	uint64_t global_ids = agx_cmdbuf_global_ids(connection);
 
 	struct agx_allocation allocs[] = {
 		shader,
@@ -815,6 +887,7 @@ void demo(mach_port_t connection, bool offscreen)
 		vsbuf,
 		fsbuf,
 		framebuffer,
+		zbuf,
 		texture_payload
 	};
 
@@ -829,11 +902,13 @@ void demo(mach_port_t connection, bool offscreen)
 	} else {
 		struct slowfb fb = slowfb_init(WIDTH, HEIGHT);
 		linear = fb.map;
+		assert(stride == fb.stride);
 		stride = fb.stride;
 	}
+	printf("%u x %u, stride = %u\n", WIDTH, HEIGHT, stride);
 
 	for (;;) {
-		demo_cmdbuf(cmdbuf.map, &allocator, &vsbuf, &fsbuf, &framebuffer, &shader_pool);
+		demo_cmdbuf(cmdbuf.map, &allocator, &vsbuf, &fsbuf, &framebuffer, &zbuf, &shader_pool);
 		agx_submit_cmdbuf(connection, &cmdbuf, &memmap, command_queue.id);
 
 		/* Block until it's done */
@@ -842,9 +917,8 @@ void demo(mach_port_t connection, bool offscreen)
 			ret = IODataQueueDequeue(command_queue.notif.queue, NULL, 0);
 
 		/* Dump the framebuffer */
-		ash_detile(framebuffer.map, linear,
-				WIDTH, 32, stride / 4,
-				0, 0, WIDTH, HEIGHT);
+		memcpy(linear, framebuffer.map, stride * HEIGHT);
+		printf("%" PRIx64 " %" PRIx64 "\n", *((uint64_t *) zbuf.map), *(((uint64_t *) zbuf.map ) + 1));
 
 		shader_pool.offset = 0;
 		allocator.offset = 0;
