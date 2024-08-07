@@ -20,7 +20,7 @@ struct agx_ptr {
 static struct agx_ptr
 agx_allocate(struct agx_allocator *allocator, size_t size)
 {
-	allocator->offset = (allocator->offset & ~127) + 128;
+	allocator->offset = (allocator->offset & ~511) + 512;
 	assert(size < (allocator->backing.size - allocator->offset));
 
 	struct agx_ptr ptr = {
@@ -47,7 +47,12 @@ uint32_t demo_vertex_pre(struct agx_allocator *allocator);
 uint32_t demo_clear(struct agx_allocator *allocator);
 uint32_t demo_frag_aux3(struct agx_allocator *allocator);
 
-void slowfb_init(uint8_t *framebuffer, int width, int height);
+struct slowfb {
+	void *map;
+	unsigned stride;
+};
+
+struct slowfb slowfb_init(int width, int height);
 void slowfb_update(int width, int height);
 
 #endif
