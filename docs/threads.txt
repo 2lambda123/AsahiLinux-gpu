@@ -27,4 +27,3 @@ Register quadwords: 27, 28, 29
 
 Register quadwords: 30, 31, 0 (= 32)
 	maxTotalThreadsPerThreadgroup = 384
-
